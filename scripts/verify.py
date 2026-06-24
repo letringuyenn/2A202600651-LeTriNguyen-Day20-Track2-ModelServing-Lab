@@ -1,11 +1,11 @@
-#!/usr/bin/env python3
+﻿#!/usr/bin/env python3
 """Pre-submission sanity check.
 
 Run from repo root: `make verify` (or `python scripts/verify.py`).
 
 Exits 0 if every required artifact is present + REFLECTION.md has been
 edited beyond the template. Exits non-zero with a checklist of what's
-missing — no files written.
+missing - no files written.
 """
 from __future__ import annotations
 
@@ -51,7 +51,7 @@ def check_reflection_edited(path: Path, problems: list[str]) -> bool:
     if not path.exists():
         problems.append(f"MISSING  submission/REFLECTION.md")
         return False
-    text = path.read_text()
+    text = path.read_text(encoding="utf-8-sig")
     leftover = []
     for pattern in TEMPLATE_MARKERS:
         # Some patterns are line-anchored (start with ^), others are inline.
@@ -71,9 +71,9 @@ def check_active_model(active_json: Path, problems: list[str]) -> bool:
     if not check_file(active_json, "models/active.json", problems):
         return False
     try:
-        cfg = json.loads(active_json.read_text())
+        cfg = json.loads(active_json.read_text(encoding="utf-8-sig"))
     except Exception as exc:
-        problems.append(f"CORRUPT  models/active.json — {exc}")
+        problems.append(f"CORRUPT  models/active.json - {exc}")
         return False
     primary = Path(cfg.get("primary_model", ""))
     if not primary.exists():
@@ -87,7 +87,7 @@ def check_active_model(active_json: Path, problems: list[str]) -> bool:
 def maybe_check_server(problems: list[str]) -> None:
     """Optional: if a llama-server is running on :8080, hit it. If not, silent."""
     try:
-        import httpx  # noqa: WPS433  — optional import
+        import httpx  # noqa: WPS433  - optional import
     except ImportError:
         return
     try:
@@ -101,14 +101,14 @@ def maybe_check_server(problems: list[str]) -> None:
             timeout=3.0,
         )
         if r.status_code == 200:
-            print("  ✓ llama-server reachable on :8080 — serving OpenAI-compat OK")
+            print("  OK llama-server reachable on :8080 - serving OpenAI-compat OK")
         else:
             problems.append(
-                f"WARN     llama-server on :8080 returned {r.status_code} — "
+                f"WARN     llama-server on :8080 returned {r.status_code} - "
                 f"check it before recording load-test screenshots"
             )
     except Exception:
-        # Server not running — that's fine, students may run verify before starting it.
+        # Server not running - that's fine, students may run verify before starting it.
         pass
 
 
@@ -129,14 +129,14 @@ def main() -> int:
         problems,
     )
 
-    # Track 02 — at least one of the two evidences should exist
+    # Track 02 - at least one of the two evidences should exist
     server_evidence = (
         (repo / "benchmarks" / "02-server-metrics.csv").exists()
         or (repo / "benchmarks" / "02-server-results.md").exists()
     )
     if not server_evidence:
         problems.append(
-            "MISSING  Track 02 evidence — neither benchmarks/02-server-metrics.csv "
+            "MISSING  Track 02 evidence - neither benchmarks/02-server-metrics.csv "
             "nor benchmarks/02-server-results.md exists. Run a locust load + record-metrics."
         )
 
@@ -144,17 +144,17 @@ def main() -> int:
     check_reflection_edited(repo / "submission" / "REFLECTION.md", problems)
     n_shots = check_screenshots(repo / "submission" / "screenshots", min_count=6, problems=problems)
     if n_shots:
-        print(f"  ✓ submission/screenshots/ has {n_shots} image(s)")
+        print(f"  OK submission/screenshots/ has {n_shots} image(s)")
 
     # Optional: server health
     maybe_check_server(problems)
 
     print()
     if not problems:
-        print("✓ All checks passed. Push your repo (public!) and paste the URL into LMS.")
+        print("OK All checks passed. Push your repo (public!) and paste the URL into LMS.")
         return 0
 
-    print("✗ Submission not ready yet:\n")
+    print("X Submission not ready yet:\n")
     for line in problems:
         print(f"  - {line}")
     print(
@@ -165,3 +165,4 @@ def main() -> int:
 
 if __name__ == "__main__":
     sys.exit(main())
+

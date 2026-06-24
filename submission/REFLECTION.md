@@ -1,123 +1,88 @@
-# Reflection — Lab 20 (Personal Report)
+# Reflection - Lab 20 Personal Report
 
-> **Đây là báo cáo cá nhân.** Mỗi học viên chạy lab trên laptop của mình, với spec của mình. Số liệu của bạn không so sánh được với bạn cùng lớp — chỉ so sánh **before vs after trên chính máy bạn**. Grade rubric tính theo độ rõ ràng của setup + tuning của bạn, không phải tốc độ tuyệt đối.
+**Ho Ten:** Le Tri Nguyen  
+**Cohort:** A20  
+**Ngay submit:** 2026-06-24
 
----
+## 1. Hardware Spec
 
-**Họ Tên:** _<Họ Tên>_
-**Cohort:** _<A20-K1 / A20-K2 / ...>_
-**Ngày submit:** _<YYYY-MM-DD>_
+- **OS:** Windows 11
+- **CPU:** 13th Gen Intel(R) Core(TM) i5-13500H
+- **Cores:** 12 physical / 16 logical
+- **CPU extensions:** x86_64 / AMD64
+- **RAM:** 15.7 GB
+- **Accelerator:** NVIDIA GeForce RTX 3050 Laptop GPU, 6 GB VRAM
+- **llama.cpp backend da chon:** CPU for this run
+- **Recommended model tier:** Llama-3.2-3B-Instruct Q4_K_M
 
----
+**Setup story:** The laptop has an NVIDIA GPU, but CUDA Toolkit/nvcc was not installed, so the CUDA build path failed. I switched the lab to CPU-only by setting `LAB_N_GPU_LAYERS=0`, reduced batch/context pressure, and used the portable Python 3.12 environment. This made benchmark, server, load test, and pipeline run end to end.
 
-## 1. Hardware spec (từ `00-setup/detect-hardware.py`)
+## 2. Track 01 - Quickstart Numbers
 
-> Paste output của `python 00-setup/detect-hardware.py` vào đây, hoặc điền thủ công:
-
-- **OS:** _<macOS 14 / Windows 11 / Ubuntu 24.04 / ...>_
-- **CPU:** _<Apple M2 / Intel i7-12700H / AMD Ryzen 7 5800H / ...>_
-- **Cores:** _<physical / logical>_
-- **CPU extensions:** _<AVX2 / AVX-512 / NEON / —>_
-- **RAM:** _<GB>_
-- **Accelerator:** _<NVIDIA RTX 4060 8GB / Apple Metal / AMD ROCm / Vulkan / CPU only>_
-- **llama.cpp backend đã chọn:** _<CUDA / Metal / Vulkan / CPU>_
-- **Recommended model tier:** _<TinyLlama-1.1B / Qwen2.5-1.5B / Llama-3.2-3B / Qwen2.5-7B>_
-
-**Setup story** (≤ 80 chữ): những gì cần thay đổi để lab chạy được trên máy bạn (vd: dùng WSL2, install CUDA Toolkit, fall back sang Vulkan vì ROCm phiên bản kén, tắt antivirus để pip install nhanh hơn, v.v.):
-
-_Answer here._
-
----
-
-## 2. Track 01 — Quickstart numbers (từ `benchmarks/01-quickstart-results.md`)
-
-> Paste bảng từ `benchmarks/01-quickstart-results.md` xuống đây (auto-generated bởi `python 01-llama-cpp-quickstart/benchmark.py`).
+Settings: `n_threads=12`, `n_ctx=2048`, `n_batch=256`, `n_gpu_layers=0`.
 
 | Model | Load (ms) | TTFT P50/P95 (ms) | TPOT P50/P95 (ms) | E2E P50/P95/P99 (ms) | Decode rate (tok/s) |
-|---|--:|--:|--:|--:|--:|
-| (Q4_K_M) | | | | | |
-| (Q2_K)   | | | | | |
+|---|---:|---:|---:|---:|---:|
+| Llama-3.2-3B-Instruct-Q4_K_M.gguf | 4724 | 324 / 373 | 87.1 / 97.7 | 5815 / 6479 / 6576 | 11.5 |
+| Llama-3.2-3B-Instruct-Q2_K.gguf | not downloaded | not run | not run | not run | not run |
 
-**Một quan sát** (≤ 50 chữ): Q4_K_M vs Q2_K trên máy bạn — số liệu nói gì? Quality đáng đánh đổi không?
+**Observation:** Q4_K_M was usable on this 16 GB laptop even in CPU-only mode. I kept Q4_K_M because it is the recommended quality/performance tradeoff; Q2_K was skipped because the compare model download was interrupted.
 
-_Answer here._
+## 3. Track 02 - llama-server Load Test
 
----
-
-## 3. Track 02 — llama-server load test
-
-> Chạy 2 lần locust ở concurrency 10 và 50, paste tóm tắt bên dưới.
+Runtime: llama-cpp-python OpenAI-compatible server on `http://localhost:8080`.
 
 | Concurrency | Total RPS | TTFB P50 (ms) | E2E P95 (ms) | E2E P99 (ms) | Failures |
-|--:|--:|--:|--:|--:|--:|
-| 10 | | | | | |
-| 50 | | | | | |
+|---:|---:|---:|---:|---:|---:|
+| 1 | 0.13 | 6200 | 14000 | 14000 | 0 |
+| 10 | not run on this CPU-only setup | not run | not run | not run | not run |
+| 50 | not run on this CPU-only setup | not run | not run | not run | not run |
 
-**Batching observation** (từ `record-metrics.py`): peak `llamacpp:n_busy_slots_per_decode` / `requests_processing` ở concurrency 50 = _<…>_, nghĩa là …
+**Batching observation:** The Python `llama_cpp.server` path does not expose Prometheus `/metrics`, so `llamacpp:n_busy_slots_per_decode` was not available. The server still passed OpenAI-compatible smoke testing and Locust requests with 0 failures. For full native metrics, I would need to build native `llama-server` with metrics enabled.
 
-_Answer here._
+## 4. Track 03 - Milestone Integration
 
----
+- **N16 (Cloud/IaC):** stub: localhost server on port 8080
+- **N17 (Data pipeline):** stub: in-memory toy pipeline
+- **N18 (Lakehouse):** stub: in-memory documents
+- **N19 (Vector + Feature Store):** stub: `TOY_DOCS` keyword retrieval
 
-## 4. Track 03 — Milestone integration
+Pipeline timings from the latest run:
 
-- **N16 (Cloud/IaC):** _<piece you connected — k3d cluster / GCP project / docker-compose / "stub: localhost only">_
-- **N17 (Data pipeline):** _<piece — Airflow DAG / batch job / "stub: in-memory dict">_
-- **N18 (Lakehouse):** _<piece — Delta Lake table / Iceberg / "stub: SQLite">_
-- **N19 (Vector + Feature Store):** _<piece — Qdrant index / Feast / "stub: TOY_DOCS">_
+| Query | Retrieve (ms) | llama-server (ms) | Total (ms) |
+|---|---:|---:|---:|
+| Why is goodput more useful than throughput? | 0.1 | 8682.4 | 8682.5 |
+| What problem does PagedAttention actually solve? | 0.1 | 5750.3 | 5750.4 |
+| When should I think about disaggregated serving? | 0.1 | 18222.5 | 18222.6 |
 
-**Nơi tốn nhiều ms nhất** trong pipeline (đo bằng `time.perf_counter` trong `pipeline.py`):
+**Reflection:** The bottleneck is clearly llama-server inference, not retrieval. This matches expectation for a CPU-only local LLM run: retrieval is almost free because it is toy in-memory keyword search, while decode dominates latency.
 
-- embed: _<ms>_
-- retrieve: _<ms>_
-- llama-server: _<ms>_
+## 5. Bonus - The Single Change That Mattered Most
 
-**Reflection** (≤ 60 chữ): bottleneck nằm ở đâu? Có khớp với kỳ vọng không?
+**Change:** Fall back from CUDA GPU offload to CPU-only with stable settings: `LAB_N_GPU_LAYERS=0`, `LAB_N_THREADS=12`, `LAB_N_CTX=2048`, `LAB_N_BATCH=256`.
 
-_Answer here._
+Before vs after:
 
----
-
-## 5. Bonus — The single change that mattered most
-
-> **Most important section.** Pick **một** thay đổi từ bonus track (build flag, thread sweep, quant pick, GPU offload, KV-cache quantization, speculative decoding, bất cứ challenge nào trong `BONUS-llama-cpp-optimization/CHALLENGES.md`) đã tạo ra speedup lớn nhất trên máy bạn.
-
-**Change:** _<vd: rebuild llama.cpp với `-DGGML_NATIVE=ON -DGGML_BLAS=ON`; vd: hạ `-t` từ 12 xuống 6; vd: bật Metal trên M2>_
-
-**Before vs after** (paste 2-3 dòng từ sweep output):
-
-```
-before: <số liệu>
-after:  <số liệu>
-speedup: ~<X.Y>×
+```text
+before: CUDA build failed because CUDA Toolkit/nvcc was missing
+after : CPU-only benchmark and server both ran successfully
+speedup: not a speedup; this was a stability fix that unblocked the lab
 ```
 
-**Tại sao nó work** (1–2 đoạn ngắn — đây là phần grader đọc kỹ nhất):
+**Why it worked:** The NVIDIA driver alone is not enough to compile the CUDA backend for llama-cpp-python. Without CUDA Toolkit and `nvcc`, the GPU build path fails before runtime. CPU-only mode avoids that native build dependency and keeps memory use predictable on a 16 GB laptop. The tradeoff is slower decode, around 11-12 tokens/s in this run, but the system becomes reliable enough to finish the core lab.
 
-_Giải thích như đang nói với một bạn cùng lớp đang ngồi cạnh. Tránh "vibes-based" reasoning — bám vào mô hình mental của hardware (memory bandwidth? compute? cache?). Nếu kết quả khác kỳ vọng từ deck, nói rõ — đó là phần grader thưởng điểm._
+## 6. Most Surprising Thing
 
----
+The biggest surprise was that the Python server has no `/metrics` endpoint, even though the native llama.cpp server can expose Prometheus metrics. For this setup, Locust output became the practical Track 02 evidence.
 
-## 6. (Optional) Điều ngạc nhiên nhất
+## 7. Self-Graded Checklist
 
-_(1–2 câu — không bắt buộc, nhưng người grader đọc tất cả)_
-
-_Answer here._
-
----
-
-## 7. Self-graded checklist
-
-- [ ] `hardware.json` đã commit
-- [ ] `models/active.json` đã commit (hoặc paste path snapshot vào section 1)
-- [ ] `benchmarks/01-quickstart-results.md` đã commit
-- [ ] `benchmarks/02-server-results.md` (hoặc CSV từ `record-metrics.py`) đã commit
-- [ ] `benchmarks/bonus-*.md` đã commit (ít nhất 1 sweep)
-- [ ] Ít nhất 6 screenshots trong `submission/screenshots/` (xem `submission/screenshots/README.md`)
-- [ ] `make verify` exit 0 (chạy ngay trước khi push)
-- [ ] Repo trên GitHub ở chế độ **public**
-- [ ] Đã paste public repo URL vào VinUni LMS
-
----
-
-**Quan trọng:** repo phải **public** đến khi điểm được công bố. Nếu private, grader không xem được → 0 điểm.
+- [x] `hardware.json` exists
+- [x] `models/active.json` exists
+- [x] `benchmarks/01-quickstart-results.md` exists
+- [x] `benchmarks/02-server-results.md` exists
+- [ ] `benchmarks/bonus-*.md` committed
+- [x] At least 6 screenshots/evidence images in `submission/screenshots/`
+- [x] `scripts/verify.py` checked after setup fixes
+- [ ] Repo is public on GitHub
+- [ ] Public repo URL pasted into VinUni LMS

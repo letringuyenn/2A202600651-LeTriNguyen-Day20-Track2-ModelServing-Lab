@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+﻿#!/usr/bin/env python3
 """Poll the native llama-server's /metrics every N seconds during a load run, write CSV.
 
 NOTE: only the native llama.cpp `llama-server` binary exposes /metrics. The Python
@@ -83,9 +83,9 @@ def main() -> int:
             )
         else:
             fails += 1
-            print("   (scrape failed — is llama-server running with --metrics?)")
+            print("   (scrape failed - is llama-server running with --metrics?)")
             if not rows and fails >= 3:
-                print("   3 scrapes failed with nothing on the endpoint — stopping early.")
+                print("   3 scrapes failed with nothing on the endpoint - stopping early.")
                 break
         time.sleep(args.interval)
 
@@ -110,3 +110,4 @@ def main() -> int:
 
 if __name__ == "__main__":
     sys.exit(main())
+

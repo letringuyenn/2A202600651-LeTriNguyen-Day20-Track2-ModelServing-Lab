@@ -1,5 +1,5 @@
-#!/usr/bin/env python3
-"""01 — Quickstart latency benchmark.
+﻿#!/usr/bin/env python3
+"""01 - Quickstart latency benchmark.
 
 Loads the primary GGUF model, measures TTFT/TPOT/P50/P95/P99, then loads
 the comparison quantization and reruns the same prompts. Writes a results
@@ -52,7 +52,7 @@ def load_active() -> dict:
     if not p.exists():
         print("ERROR: models/active.json missing. Run 00-setup/download-model.py.", file=sys.stderr)
         sys.exit(1)
-    return json.loads(p.read_text())
+    return json.loads(p.read_text(encoding="utf-8-sig"))
 
 
 def load_hardware() -> dict:
@@ -107,11 +107,11 @@ def benchmark_model(label: str, path: str, hw: dict) -> dict:
     n_threads = env_int("LAB_N_THREADS", hw.get("cpu", {}).get("cores_physical") or 4)
     n_ctx = env_int("LAB_N_CTX", 2048)
     n_batch = env_int("LAB_N_BATCH", 512)
-    n_gpu_layers = env_int("LAB_N_GPU_LAYERS", 99 if any_gpu(hw) else 0)
+    n_gpu_layers = env_int("LAB_N_GPU_LAYERS", 0)
     temp = env_float("LAB_TEMPERATURE", 0.7)
     max_tok = env_int("LAB_MAX_TOKENS", 64)
 
-    print(f"\n── Loading {label}: {Path(path).name}")
+    print(f"\n-- Loading {label}: {Path(path).name}")
     print(f"   n_threads={n_threads}  n_ctx={n_ctx}  n_batch={n_batch}  n_gpu_layers={n_gpu_layers}")
 
     t0 = time.perf_counter()
@@ -170,7 +170,7 @@ def render_md(primary: dict, compare: dict) -> str:
             f"{s['decode_rate_tok_s']:.1f} |"
         )
 
-    return f"""# 01 — Quickstart Results
+    return f"""# 01 - Quickstart Results
 
 Settings: `n_threads={primary['n_threads']}`, `n_ctx={primary['n_ctx']}`, `n_batch={primary['n_batch']}`, `n_gpu_layers={primary['n_gpu_layers']}`.
 
@@ -183,7 +183,7 @@ Settings: `n_threads={primary['n_threads']}`, `n_ctx={primary['n_ctx']}`, `n_bat
 
 - TTFT is the prefill cost. With short prompts this is small; with long prompts it dominates.
 - TPOT is per-token decode latency. The decode rate is `1000 / TPOT_p50`.
-- The bigger quantization (Q4_K_M) is usually only ~30–60% slower than Q2_K but produces noticeably better text. Q2_K is for *truly* tight RAM.
+- The bigger quantization (Q4_K_M) is usually only ~30-60% slower than Q2_K but produces noticeably better text. Q2_K is for *truly* tight RAM.
 - `n_threads = physical_cores` is usually best on CPU. Hyperthreading (`logical_cores`) often hurts because the work is bandwidth-bound.
 
 (Edit this file with your own observations before submitting.)
@@ -195,14 +195,24 @@ def main() -> int:
     hw = load_hardware()
 
     primary = benchmark_model("primary (Q4_K_M)", active["primary_model"], hw)
-    compare = benchmark_model("compare (Q2_K)", active["compare_model"], hw)
+
+    compare_model = active.get("compare_model")
+    if compare_model and Path(compare_model).exists():
+        compare = benchmark_model("compare (Q2_K)", compare_model, hw)
+    else:
+        print("\nWARNING: compare_model missing; using primary model as fallback.")
+        compare = primary.copy()
+        compare["label"] = "compare skipped"
 
     out_dir = Path("benchmarks")
     out_dir.mkdir(exist_ok=True)
+
     md = render_md(primary, compare)
-    (out_dir / "01-quickstart-results.md").write_text(md)
+
+    (out_dir / "01-quickstart-results.md").write_text(md, encoding="utf-8")
     (out_dir / "01-quickstart-results.json").write_text(
-        json.dumps({"primary": primary, "compare": compare}, indent=2)
+        json.dumps({"primary": primary, "compare": compare}, indent=2),
+        encoding="utf-8",
     )
 
     print("\n" + md)
@@ -212,3 +222,5 @@ def main() -> int:
 
 if __name__ == "__main__":
     sys.exit(main())
+
+
